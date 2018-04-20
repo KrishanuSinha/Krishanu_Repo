@@ -1,0 +1,52 @@
+import pandas as pd
+import numpy as np
+import json
+from flask import Flask
+from flask import request
+from flask import jsonify
+
+app = Flask(__name__)
+
+
+
+#Reading Books_Dataset.csv into a Dataframe
+books = pd.read_csv("Books_Dataset.csv",delimiter='\t',low_memory=False)
+books = books.drop(['Unnamed: 0'], axis=1)
+
+booksmat = books.pivot_table(index=['User-ID'],columns=['Book-Title'],values='Book-Rating')
+
+def pearson(s1,s2):
+    #Take two pd.Series objects and return a pearson correlation
+    s1_c = s1-s1.mean()
+    s2_c = s2-s2.mean()
+    return (round(np.sum(s1_c*s2_c)/np.sqrt(np.sum(s1_c**2)*np.sum(s2_c**2))*100,2))
+    
+
+#x=pearson(booksmat['Venus'],booksmat['Well Groomed'])
+#print(x)
+@app.route("/", methods=['POST'])
+def get_recs():
+    import numpy as np
+    reviews=[]
+    #print(request.args)
+    books_name = request.form.get('field1')
+    #books_name = "Venus"
+    
+    num = 10
+    for title in booksmat.columns:
+        if title == books_name:
+            continue
+        cor = pearson(booksmat[books_name],booksmat[title])
+        if np.isnan(cor):
+            continue
+        else:
+            reviews.append((title,cor))
+    
+    reviews.sort(key=lambda tup:tup[1],reverse=True)
+    #reviews[:10]
+    #df = pd.DataFrame(np.array(recs).reshape(10,2), columns=['Books Recommended','Score'])
+    #print(reviews[:10])
+    return (jsonify(reviews[:10]))
+   
+if (__name__ == "__main__"):
+    app.run(port =5001)
